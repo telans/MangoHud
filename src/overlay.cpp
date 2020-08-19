@@ -678,10 +678,6 @@ void init_gpu_stats(uint32_t& vendorID, overlay_params& params)
 }
 
 void init_system_info(){
-      const char* ld_preload = getenv("LD_PRELOAD");
-      if (ld_preload)
-         unsetenv("LD_PRELOAD");
-
       ram =  exec("cat /proc/meminfo | grep 'MemTotal' | awk '{print $2}'");
       trim(ram);
       cpu =  exec("cat /proc/cpuinfo | grep 'model name' | tail -n1 | sed 's/^.*: //' | sed 's/([^)]*)/()/g' | tr -d '(/)'");
@@ -693,7 +689,7 @@ void init_system_info(){
       trim(os);
       gpu = exec("lspci | grep VGA | head -n1 | awk -vRS=']' -vFS='[' '{print $2}' | sed '/^$/d' | tail -n1");
       trim(gpu);
-      driver = exec("glxinfo | grep 'OpenGL version' | sed 's/^.*: //' | cut -d' ' --output-delimiter=$'\n' -f1- | grep -v '(' | grep -v ')' | tr '\n' ' ' | cut -c 1-");
+      driver = exec("env -u LD_PRELOAD glxinfo | grep 'OpenGL version' | sed 's/^.*: //' | cut -d' ' --output-delimiter=$'\n' -f1- | grep -v '(' | grep -v ')' | tr '\n' ' ' | cut -c 1-");
       trim(driver);
 
 // Get WINE version
@@ -726,14 +722,10 @@ void init_system_info(){
          else {
             char *dir = dirname((char*)wineProcess.c_str());
             stringstream findVersion;
-            findVersion << "\"" << dir << "/wine\" --version";
-            const char *wine_env = getenv("WINELOADERNOEXEC");
-            if (wine_env)
-               unsetenv("WINELOADERNOEXEC");
+            findVersion << "env -u WINELOADERNOEXEC \"" << dir << "/wine\" --version";
             wineVersion = exec(findVersion.str());
+            trim(wineVersion);
             std::cout << "WINE VERSION = " << wineVersion << "\n";
-            if (wine_env)
-               setenv("WINELOADERNOEXEC", wine_env, 1);
          }
       }
       else {
@@ -742,8 +734,6 @@ void init_system_info(){
 
       //driver = itox(device_data->properties.driverVersion);
 
-      if (ld_preload)
-         setenv("LD_PRELOAD", ld_preload, 1);
 #ifndef NDEBUG
       std::cout << "Ram:" << ram << "\n"
                 << "Cpu:" << cpu << "\n"
